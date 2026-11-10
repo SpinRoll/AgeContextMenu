@@ -52,6 +52,8 @@ jobs:
             throw "Legacy Microsoft.Windows.SDK.Contracts reference was not removed."
           }
           Set-Content -Path "$PWD\global.json" -Value '{ "sdk": { "version": "8.0.428", "rollForward": "latestPatch" } }' -Encoding utf8
+          # The unpacked source omits System.IO imports used by the services.
+          Set-Content -Path "$PWD\_build\AgeContextMenu\AgeContextMenu\GlobalUsings.Build.cs" -Value "global using System.IO;" -Encoding utf8
 
       - name: Set up Go
         uses: actions/setup-go@v5
