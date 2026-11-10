@@ -66,6 +66,17 @@ jobs:
       - name: Restore .NET dependencies
         run: dotnet restore _build/AgeContextMenu/AgeContextMenu/AgeContextMenu.csproj
 
+      - name: Inspect project Windows references
+        shell: pwsh
+        run: |
+          $project = "_build/AgeContextMenu/AgeContextMenu/AgeContextMenu.csproj"
+          Write-Host "----- PROJECT FILE -----"
+          Get-Content $project
+          Write-Host "----- SDK AND WINDOWS REFERENCES -----"
+          Select-String -Path $project -Pattern "TargetFramework|Windows|winmd|Reference|PackageReference|UseWinUI|UseWPF|UseWindowsForms"
+          Write-Host "----- SDK VERSION -----"
+          dotnet --version
+
       - name: Publish self-contained Windows x64 EXE
         shell: pwsh
         run: |
