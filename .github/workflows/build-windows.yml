@@ -40,6 +40,19 @@ jobs:
             throw "The source archive could not be reconstructed or has an unexpected folder layout."
           }
 
+          # .NET 5+ must not consume the legacy Windows SDK Contracts WinMD package.
+          $project = "$PWD\_build\AgeContextMenu\AgeContextMenu\AgeContextMenu.csproj"
+          [xml]$xml = Get-Content $project
+          $legacy = $xml.Project.ItemGroup.PackageReference | Where-Object { $_.Include -eq "Microsoft.Windows.SDK.Contracts" }
+          if ($legacy) {
+            $legacy.ParentNode.RemoveChild($legacy) | Out-Null
+            $xml.Save($project)
+          }
+          if (Select-String -Path $project -Pattern "Microsoft.Windows.SDK.Contracts" -Quiet) {
+            throw "Legacy Microsoft.Windows.SDK.Contracts reference was not removed."
+          }
+          Set-Content -Path "$PWD\global.json" -Value '{ "sdk": { "version": "8.0.428", "rollForward": "latestPatch" } }' -Encoding utf8
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
