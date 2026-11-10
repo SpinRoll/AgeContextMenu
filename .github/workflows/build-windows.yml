@@ -54,6 +54,66 @@ jobs:
           Set-Content -Path "$PWD\global.json" -Value '{ "sdk": { "version": "8.0.428", "rollForward": "latestPatch" } }' -Encoding utf8
           # The unpacked source omits System.IO imports used by the services.
           Set-Content -Path "$PWD\_build\AgeContextMenu\AgeContextMenu\GlobalUsings.Build.cs" -Value "global using System.IO;" -Encoding utf8
+          # Fix the bridge resource's logical name: the original project misspelled this MSBuild metadata.
+          $projectDir = "$PWD\_build\AgeContextMenu\AgeContextMenu"
+          $project = "$projectDir\AgeContextMenu.csproj"
+          [xml]$projectXml = Get-Content $project
+          $bridgeResource = $projectXml.Project.ItemGroup.EmbeddedResource | Where-Object { $_.Include -like "*agebridge.exe" }
+          if (!$bridgeResource) { throw "Embedded agebridge.exe resource declaration not found." }
+          $bridgeResource.RemoveAttribute("LoganilName")
+          $bridgeResource.SetAttribute("LogicalName", "AgeContextMenu.agebridge.exe")
+          $mainGroup = $projectXml.Project.PropertyGroup | Select-Object -First 1
+          $appIcon = $projectXml.CreateElement("ApplicationIcon")
+          $appIcon.InnerText = "Assets\AgeContextMenu.ico"
+          [void]$mainGroup.AppendChild($appIcon)
+          $projectXml.Save($project)
+
+          # Generate a native Windows .ico on the Windows runner (folder + clock motif).
+          Add-Type -AssemblyName System.Drawing
+          $assets = "$projectDir\Assets"
+          New-Item -ItemType Directory -Force -Path $assets | Out-Null
+          $bmp = New-Object System.Drawing.Bitmap(256, 256)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+          $g.Clear([System.Drawing.Color]::Transparent)
+          $tile = New-Object System.Drawing.Drawing2D.GraphicsPath
+          $tile.AddArc(4,4,56,56,180,90); $tile.AddArc(196,4,56,56,270,90)
+          $tile.AddArc(196,196,56,56,0,90); $tile.AddArc(4,196,56,56,90,90)
+          $tile.CloseFigure()
+          $bg = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,8,27,58))
+          $g.FillPath($bg,$tile)
+          $folderPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+          $folderPath.AddPolygon([System.Drawing.Point[]]@(
+            (New-Object System.Drawing.Point(42,83)),(New-Object System.Drawing.Point(42,66)),
+            (New-Object System.Drawing.Point(111,66)),(New-Object System.Drawing.Point(130,85)),
+            (New-Object System.Drawing.Point(211,85)),(New-Object System.Drawing.Point(211,190)),
+            (New-Object System.Drawing.Point(42,190))
+          ))
+          $folderBrush = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+            (New-Object System.Drawing.Rectangle(42,66,169,124)),
+            [System.Drawing.Color]::FromArgb(255,41,226,245),
+            [System.Drawing.Color]::FromArgb(255,0,93,220), 45)
+          $g.FillPath($folderBrush,$folderPath)
+          $g.DrawPath((New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255,120,245,255),4)),$folderPath)
+          $silver = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,195,218,245))
+          $navy = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,9,31,67))
+          $g.FillEllipse($silver,132,127,100,100)
+          $g.FillEllipse($navy,140,135,84,84)
+          $whitePen = New-Object System.Drawing.Pen([System.Drawing.Color]::White,5)
+          $g.DrawLine($whitePen,182,146,182,157); $g.DrawLine($whitePen,182,197,182,208)
+          $g.DrawLine($whitePen,150,177,160,177); $g.DrawLine($whitePen,204,177,214,177)
+          $goldPen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255,255,177,35),8)
+          $goldPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+          $goldPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+          $g.DrawLine($goldPen,182,177,204,153)
+          $g.FillEllipse((New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,255,177,35))),176,171,12,12)
+          $hIcon = $bmp.GetHicon()
+          $nativeIcon = [System.Drawing.Icon]::FromHandle($hIcon)
+          $iconStream = [System.IO.File]::Create("$assets\AgeContextMenu.ico")
+          $nativeIcon.Save($iconStream)
+          $iconStream.Dispose()
+          $nativeIcon.Dispose(); $g.Dispose(); $bmp.Dispose()
+          if (!(Test-Path "$assets\AgeContextMenu.ico")) { throw "Application icon generation failed." }
 
       - name: Set up Go
         uses: actions/setup-go@v5
