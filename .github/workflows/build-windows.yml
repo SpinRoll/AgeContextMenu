@@ -67,15 +67,19 @@ jobs:
         run: dotnet restore _build/AgeContextMenu/AgeContextMenu/AgeContextMenu.csproj
 
       - name: Publish self-contained Windows x64 EXE
-        run: >
-          dotnet publish _build/AgeContextMenu/AgeContextMenu/AgeContextMenu.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -o Dist
+        shell: pwsh
+        run: |
+          dotnet publish _build/AgeContextMenu/AgeContextMenu/AgeContextMenu.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:TargetPlatformVersion=10.0.26100.0 `
+            -p:TargetPlatformMinVersion=10.0.22000.0 `
+            -o Dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
